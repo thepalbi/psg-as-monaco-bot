@@ -23,7 +23,6 @@ const (
 	comingSoonAction    = "Prochainement"
 	reserveAction       = "Réserver"
 	monacoPSGMatch      = "AS MONACOPARIS SAINT GERMAIN"
-	botToken            = "6064267195:AAFNCRCjqzdtXEOiOcWjdj9dWdSBaaG48L4"
 )
 
 func Scrape() {
@@ -90,6 +89,7 @@ func sendTelegramMessage(chatID uint64, text string) error {
 		return fmt.Errorf("failed to marshall sendMessage request: %w", err)
 	}
 	log.Printf("request: %s", string(bs))
+	botToken := os.Getenv("BOT_TOKEN")
 	req, err := http.NewRequest("POST", fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", botToken), bytes.NewReader(bs))
 	if err != nil {
 		return fmt.Errorf("failed to create http request: %w", err)
