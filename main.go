@@ -7,7 +7,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -39,6 +42,8 @@ func Scrape() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// "exists(.matchCard|text(span.teamName) == 'AS MONACOPARIS SAINT GERMAIN' && text(.matchActions) == 'Réserver')"
 
 	// Find the review items
 	doc.Find(".matchCard").Each(func(i int, s *goquery.Selection) {
@@ -106,8 +111,40 @@ func sendTelegramMessage(chatID uint64, text string) error {
 	return nil
 }
 
+var runEvery = time.Minute * 30
+
 func main() {
+	sigs := make(chan os.Signal, 1)
+
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
 	log.Printf("Starting to scrape")
 	sendTelegramMessage(palbiChatID, "Empezando scraper de PSG \\- AS Monaco")
-	Scrape()
+	done := make(chan struct{})
+	done2 := make(chan struct{})
+	ticker := time.NewTicker(runEvery)
+
+	// scrape every so often
+	go func() {
+		for {
+			select {
+			case <-done:
+				log.Printf("Stopping scrape")
+				return
+			case <-ticker.C:
+				log.Printf("scraping")
+				Scrape()
+			}
+		}
+	}()
+
+	// cancel func
+	go func() {
+		sig := <-sigs
+		log.Printf("Received signal: %s", sig)
+		ticker.Stop()
+		done <- struct{}{}
+		done2 <- struct{}{}
+	}()
+	<-done2
 }
